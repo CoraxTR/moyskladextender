@@ -3,6 +3,7 @@ package order_processor
 import (
 	"fmt"
 	"math"
+	"mstorefgo/internal/config"
 	"mstorefgo/internal/moyskladapi"
 	"mstorefgo/internal/unmarshaller"
 	"strconv"
@@ -33,6 +34,10 @@ type ProcessedOrder struct {
 	FrozenBoxes           uint8
 	ChilledBoxes          uint8
 	errors                []error
+}
+
+func (u *ProcessedOrder) setOrderRefgoNumber(i int) {
+	u.RefGoNumber = strconv.Itoa(i)
 }
 
 // Set Order HREF, no need to check for nil as it is automatically assigned by MoySklad
@@ -279,6 +284,7 @@ func ProcessOrders(p *moyskladapi.MoySkladProcessor) (ordersCount int, orders *m
 		return 0, nil, err
 	}
 
+	refGoNumber := p.RefGoConfig.RGLatestOrder
 	for _, order := range unprocessedOrders.Rows {
 
 		if !suitableForDelivery(order) {
@@ -287,6 +293,7 @@ func ProcessOrders(p *moyskladapi.MoySkladProcessor) (ordersCount int, orders *m
 
 		var newOrder ProcessedOrder
 		order.UnmarshallOrderAttributes()
+		newOrder.setOrderRefgoNumber(refGoNumber + 1)
 		newOrder.setOrderHREF(order)
 		newOrder.setOrderName(order)
 		newOrder.setOrderDescription(order)
@@ -303,7 +310,13 @@ func ProcessOrders(p *moyskladapi.MoySkladProcessor) (ordersCount int, orders *m
 		newOrder.setChilledTotalWeight()
 		newOrder.setFrozenTotalWeight()
 		storage[newOrder.HREF] = newOrder
+		refGoNumber++
 	}
+	errs := config.ChangeRefGoLatest(refGoNumber)
+	if errs != nil {
+		fmt.Println(errs)
+	}
+
 	orders = &storage
 	return ordersCount, orders, err
 }

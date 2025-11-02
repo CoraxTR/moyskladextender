@@ -1,8 +1,10 @@
 package xlsxbuilder
 
 import (
+	"fmt"
 	"mstorefgo/internal/config"
 	"mstorefgo/internal/order_processor"
+	"strconv"
 	"time"
 
 	"codeberg.org/tealeg/xlsx/v4"
@@ -27,8 +29,6 @@ func clickCell(sh *xlsx.Sheet, row, col int) *xlsx.Cell {
 
 func BuildUploadXlsx(cfg config.Config, orders map[string]order_processor.ProcessedOrder) error {
 
-	refnumber := cfg.RGLatestOrder + 1
-
 	uploadFile, err := xlsx.OpenFile("../blankimport.xlsx")
 	if err != nil {
 		panic(err)
@@ -44,6 +44,10 @@ func BuildUploadXlsx(cfg config.Config, orders map[string]order_processor.Proces
 	summaryrownumber := 6
 
 	for _, order := range orders {
+		refnumber, err := strconv.Atoi(order.RefGoNumber)
+		if err != nil {
+			fmt.Println(err)
+		}
 		theCell = clickCell(importSheet, importrownumber, 0)
 		theCell.SetInt(refnumber)
 		theCell = clickCell(importSheet, importrownumber, 1)
@@ -209,7 +213,6 @@ func BuildUploadXlsx(cfg config.Config, orders map[string]order_processor.Proces
 
 		importrownumber++
 		summaryrownumber++
-		refnumber++
 	}
 
 	temptoday := time.Now()

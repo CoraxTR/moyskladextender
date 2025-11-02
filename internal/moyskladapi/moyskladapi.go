@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"path"
+	"strconv"
 	"strings"
 	"time"
 
@@ -19,10 +20,11 @@ import (
 type MoySkladProcessor struct {
 	Ratelimiter *Ratelimiter
 	Config      *config.Moyskladapiconfig
+	RefGoConfig *config.RefGoconfig
 }
 
-func NewMoySkladProcessor(r *Ratelimiter, c *config.Moyskladapiconfig) *MoySkladProcessor {
-	return &MoySkladProcessor{Ratelimiter: r, Config: c}
+func NewMoySkladProcessor(r *Ratelimiter, c *config.Moyskladapiconfig, rgc *config.RefGoconfig) *MoySkladProcessor {
+	return &MoySkladProcessor{Ratelimiter: r, Config: c, RefGoConfig: rgc}
 }
 
 func (m *MoySkladProcessor) FetchDeliverableOrders() []byte {
@@ -122,8 +124,33 @@ func (m *MoySkladProcessor) FetchEntityByHREF(href string) []byte {
 	return body
 }
 
-type orderShipmentUpdate struct {
-	State *State `json:"state"`
+type orderUpdate struct {
+	State      *State      `json:"state"`
+	Attributes []Attribute `json:"attributes"`
+}
+
+type orderUpdateStringedAttribute struct {
+	Attributes []StringedAttribute `json:"attributes"`
+}
+
+type Attribute struct {
+	Meta  Meta   `json:"meta"`
+	ID    string `json:"id"`
+	Name  string `json:"name"`
+	Type  string `json:"type"`
+	Value Value  `json:"value"`
+}
+
+type StringedAttribute struct {
+	Meta  Meta   `json:"meta"`
+	ID    string `json:"id"`
+	Name  string `json:"name"`
+	Type  string `json:"type"`
+	Value string `json:"value"`
+}
+type Value struct {
+	Meta Meta   `json:"meta"`
+	Name string `json:"name"`
 }
 
 type State struct {
@@ -131,14 +158,15 @@ type State struct {
 }
 
 type Meta struct {
-	Href      string `json:"href"`
+	Href string `json:"href"`
+
 	Type      string `json:"type"`
-	MediaType string `json:"metadataHref"`
+	MediaType string `json:"mediaType"`
 }
 
 func (m *MoySkladProcessor) SetOrderShipped(href string) error {
 	url := href
-	orderShipmentUpdate := orderShipmentUpdate{
+	orderShipmentUpdate := orderUpdate{
 		State: &State{
 			Meta: Meta{
 				Href:      m.Config.Shipedstatehref,
@@ -154,6 +182,103 @@ func (m *MoySkladProcessor) SetOrderShipped(href string) error {
 	}
 
 	req, err := http.NewRequest(http.MethodPut, url, bytes.NewBuffer(orderShipmentUpdateJSON))
+	if err != nil {
+		return err
+	}
+
+	req.Header.Set("Authorization", "Bearer "+m.Config.APIKEY)
+	req.Header.Set("Accept-Encoding", "gzip")
+	req.Header.Set("Content-Type", "application/json")
+
+	m.Ratelimiter.Wait()
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("API returned status %d", resp.StatusCode)
+	}
+	return nil
+}
+
+func (m *MoySkladProcessor) SetOrderSellTypetoOther(href string) error {
+	url := href
+	orderSellTypeUpdate := orderUpdate{
+		Attributes: []Attribute{
+			{
+				Meta: Meta{
+					Href:      m.Config.SellTypehref,
+					Type:      "attributemetadata",
+					MediaType: "application/json",
+				},
+				ID:   m.Config.SellTypeID,
+				Name: "Вид продажи",
+				Type: "customentity",
+				Value: Value{
+					Meta: Meta{
+						Href:      m.Config.SellTypeOtherhref,
+						Type:      "customentity",
+						MediaType: "application/json",
+					},
+					Name: "Прочие",
+				},
+			},
+		},
+	}
+
+	orderSellTypeUpdateJSON, err := json.Marshal(orderSellTypeUpdate)
+	if err != nil {
+		fmt.Printf("failed to marshal orderShipmentUpdate: %s", err)
+	}
+
+	req, err := http.NewRequest(http.MethodPut, url, bytes.NewBuffer(orderSellTypeUpdateJSON))
+	if err != nil {
+		return err
+	}
+
+	req.Header.Set("Authorization", "Bearer "+m.Config.APIKEY)
+	req.Header.Set("Accept-Encoding", "gzip")
+	req.Header.Set("Content-Type", "application/json")
+
+	m.Ratelimiter.Wait()
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("API returned status %d", resp.StatusCode)
+	}
+	return nil
+}
+
+func (m *MoySkladProcessor) SetOrderRefGoNumber(href string, rfgnumber int) error {
+	url := href
+	orderSellTypeUpdate := orderUpdateStringedAttribute{
+		Attributes: []StringedAttribute{
+			{
+				Meta: Meta{
+					Href:      m.Config.RefGoNumberhref,
+					Type:      "attributemetadata",
+					MediaType: "application/json",
+				},
+				ID:    m.Config.RefGoNumberID,
+				Name:  "Номер в Реф",
+				Type:  "string",
+				Value: strconv.Itoa(rfgnumber),
+			},
+		},
+	}
+
+	orderSellTypeUpdateJSON, err := json.Marshal(orderSellTypeUpdate)
+	if err != nil {
+		fmt.Printf("failed to marshal orderShipmentUpdate: %s", err)
+	}
+
+	req, err := http.NewRequest(http.MethodPut, url, bytes.NewBuffer(orderSellTypeUpdateJSON))
 	if err != nil {
 		return err
 	}

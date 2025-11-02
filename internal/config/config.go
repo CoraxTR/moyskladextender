@@ -1,8 +1,10 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -14,15 +16,20 @@ type Config struct {
 }
 
 type Moyskladapiconfig struct {
-	APIKEY          string
-	TimeSpan        time.Duration
-	RequestCap      int
-	Readystatehref  string
-	Shipedstatehref string
-	Storehref       string
-	Orghref         string
-	TimeFormat      string
-	URLstart        string
+	APIKEY            string
+	TimeSpan          time.Duration
+	RequestCap        int
+	Readystatehref    string
+	Shipedstatehref   string
+	SellTypehref      string
+	SellTypeID        string
+	SellTypeOtherhref string
+	Storehref         string
+	Orghref           string
+	RefGoNumberhref   string
+	RefGoNumberID     string
+	TimeFormat        string
+	URLstart          string
 }
 
 type RefGoconfig struct {
@@ -62,6 +69,21 @@ func LoadConfig() *Config {
 		panic("Shipedstatehref does not exist")
 	}
 
+	selltypehref := os.Getenv("MSAPI_SELLTYPEHREF")
+	if selltypehref == "" {
+		panic("Selltype does not exist")
+	}
+
+	selltypeID := os.Getenv("MSAPI_SELLTYPEID")
+	if selltypeID == "" {
+		panic("SelltypeID does not exist")
+	}
+
+	selltypeOtherhref := os.Getenv("MSAPI_SELLTYPEOTHERHREF")
+	if selltypeOtherhref == "" {
+		panic("OtherSelltype does not exist")
+	}
+
 	storehref := os.Getenv("MSAPI_STOREHREF")
 	if storehref == "" {
 		panic("Storehref does not exist")
@@ -70,6 +92,16 @@ func LoadConfig() *Config {
 	orghref := os.Getenv("MSAPI_ORGHREF")
 	if orghref == "" {
 		panic("Orghref does not exist")
+	}
+
+	refgonumberhref := os.Getenv("MSAPI_REFGONUMBERHREF")
+	if refgonumberhref == "" {
+		panic("RefGoNumberhref does not exist")
+	}
+
+	refgonumberid := os.Getenv("MSAPI_REFGONUMBERID")
+	if refgonumberid == "" {
+		panic("RefGoNumberID does not exist")
 	}
 
 	timeFormat := os.Getenv("MSAPI_TIMEFORMAT")
@@ -85,25 +117,61 @@ func LoadConfig() *Config {
 	if os.Getenv("RG_LATESTORDER") == "" {
 		panic("RG_LATESTORDER does not exist")
 	}
-	latestorder, err := strconv.Atoi(os.Getenv("RG_LATESTORDER"))
+
+	latestorder, err := strconv.Atoi(strings.Trim(os.Getenv("RG_LATESTORDER"), `"`))
 	if err != nil {
 		panic("Invalid RG_LATESTORDER")
 	}
+	fmt.Println(latestorder)
 
 	return &Config{
 		Moyskladapiconfig{
-			APIKEY:          apiKey,
-			TimeSpan:        tspn,
-			RequestCap:      rqcap,
-			Readystatehref:  readystatehref,
-			Shipedstatehref: shipedstatehref,
-			Storehref:       storehref,
-			Orghref:         orghref,
-			TimeFormat:      timeFormat,
-			URLstart:        urlstart,
+			APIKEY:            apiKey,
+			TimeSpan:          tspn,
+			RequestCap:        rqcap,
+			Readystatehref:    readystatehref,
+			Shipedstatehref:   shipedstatehref,
+			SellTypehref:      selltypehref,
+			SellTypeID:        selltypeID,
+			SellTypeOtherhref: selltypeOtherhref,
+			Storehref:         storehref,
+			Orghref:           orghref,
+			RefGoNumberhref:   refgonumberhref,
+			RefGoNumberID:     refgonumberid,
+			TimeFormat:        timeFormat,
+			URLstart:          urlstart,
 		},
 		RefGoconfig{
 			RGLatestOrder: latestorder,
 		},
 	}
+}
+
+func ChangeRefGoLatest(latestOrder int) error {
+	envFile := "../.env"
+	content, err := os.ReadFile(envFile)
+	if err != nil {
+		return fmt.Errorf("ошибка чтения файла: %v", err)
+	}
+
+	lines := strings.Split(string(content), "\n")
+	found := false
+
+	for i, line := range lines {
+		if strings.HasPrefix(strings.TrimSpace(line), "RG_LATESTORDER=") {
+			lines[i] = fmt.Sprintf("RG_LATESTORDER=\"%d\"", latestOrder)
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		lines = append(lines, fmt.Sprintf("RG_LATESTORDER=\"%d\"", latestOrder))
+	}
+
+	if err := os.WriteFile(envFile, []byte(strings.Join(lines, "\n")), 0644); err != nil {
+		return fmt.Errorf("ошибка записи файла: %v", err)
+	}
+
+	return nil
 }
