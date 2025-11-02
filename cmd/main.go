@@ -12,7 +12,7 @@ func main() {
 	cfg := config.LoadConfig()
 
 	msRateLimiter := moyskladapi.NewRatelimiter(cfg.RequestCap, cfg.TimeSpan)
-	msProcessor := moyskladapi.NewMoySkladProcessor(msRateLimiter, &cfg.Moyskladapiconfig)
+	msProcessor := moyskladapi.NewMoySkladProcessor(msRateLimiter, &cfg.Moyskladapiconfig, &cfg.RefGoconfig)
 	xlsxbuilder := xlsxbuilder.NewXlsxBuilder(*cfg)
 
 	count, storage, err := usecases.PrepareUploadableOrders(msProcessor)
@@ -23,5 +23,5 @@ func main() {
 	usecases.ChangeStatusToShiped(msProcessor, *storage)
 	usecases.ShipOrders(msProcessor, *storage)
 
-	fmt.Printf("%+v/n %+v/n", count, storage)
+	fmt.Println(count)
 }
