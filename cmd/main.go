@@ -1,18 +1,27 @@
 package main
 
 import (
+	"fmt"
 	"mstorefgo/internal/config"
-	moyskladapi "mstorefgo/internal/moyskladapi"
+	"mstorefgo/internal/moyskladapi"
+	"mstorefgo/internal/xlsxbuilder"
+	"mstorefgo/usecases"
 )
 
 func main() {
-	cfg, err := config.LoadConfig()
+	cfg := config.LoadConfig()
+
+	msRateLimiter := moyskladapi.NewRatelimiter(cfg.RequestCap, cfg.TimeSpan)
+	msProcessor := moyskladapi.NewMoySkladProcessor(msRateLimiter, &cfg.Moyskladapiconfig)
+	xlsxbuilder := xlsxbuilder.NewXlsxBuilder(*cfg)
+
+	count, storage, err := usecases.PrepareUploadableOrders(msProcessor)
 	if err != nil {
-		panic(".env not ready")
+		panic(err)
 	}
-	MSRateLimiter := moyskladapi.NewRatelimiter(cfg.RequestCap, cfg.TimeSpan)
-	msprocessor := moyskladapi.NewMoySkladProcessor(MSRateLimiter, &cfg.Moyskladapiconfig)
+	usecases.BuildUploadXlsx(xlsxbuilder, *storage)
+	usecases.ChangeStatusToShiped(msProcessor, *storage)
+	usecases.ShipOrders(msProcessor, *storage)
 
-	msprocessor.GetDeliverableOrders()
-
+	fmt.Printf("%+v/n %+v/n", count, storage)
 }

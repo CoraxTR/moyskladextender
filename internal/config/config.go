@@ -10,18 +10,26 @@ import (
 
 type Config struct {
 	Moyskladapiconfig
+	RefGoconfig
 }
 
 type Moyskladapiconfig struct {
-	APIKEY     string
-	TimeSpan   time.Duration
-	RequestCap int
-	Statehref  string
-	TimeFormat string
-	URLstart   string
+	APIKEY          string
+	TimeSpan        time.Duration
+	RequestCap      int
+	Readystatehref  string
+	Shipedstatehref string
+	Storehref       string
+	Orghref         string
+	TimeFormat      string
+	URLstart        string
 }
 
-func LoadConfig() (*Config, error) {
+type RefGoconfig struct {
+	RGLatestOrder int
+}
+
+func LoadConfig() *Config {
 	err := godotenv.Load("../.env")
 	if err != nil {
 		panic("Cannot read config file")
@@ -44,9 +52,24 @@ func LoadConfig() (*Config, error) {
 		panic("Requestcap does not exist")
 	}
 
-	stateref := os.Getenv("MSAPI_STATEHREF")
-	if stateref == "" {
+	readystatehref := os.Getenv("MSAPI_READYSTATEHREF")
+	if readystatehref == "" {
 		panic("Statehref does not exist")
+	}
+
+	shipedstatehref := os.Getenv("MSAPI_SHIPEDSTATEHREF")
+	if shipedstatehref == "" {
+		panic("Shipedstatehref does not exist")
+	}
+
+	storehref := os.Getenv("MSAPI_STOREHREF")
+	if storehref == "" {
+		panic("Storehref does not exist")
+	}
+
+	orghref := os.Getenv("MSAPI_ORGHREF")
+	if orghref == "" {
+		panic("Orghref does not exist")
 	}
 
 	timeFormat := os.Getenv("MSAPI_TIMEFORMAT")
@@ -59,14 +82,28 @@ func LoadConfig() (*Config, error) {
 		panic("URLstart does not exist")
 	}
 
+	if os.Getenv("RG_LATESTORDER") == "" {
+		panic("RG_LATESTORDER does not exist")
+	}
+	latestorder, err := strconv.Atoi(os.Getenv("RG_LATESTORDER"))
+	if err != nil {
+		panic("Invalid RG_LATESTORDER")
+	}
+
 	return &Config{
 		Moyskladapiconfig{
-			APIKEY:     apiKey,
-			TimeSpan:   tspn,
-			RequestCap: rqcap,
-			Statehref:  stateref,
-			TimeFormat: timeFormat,
-			URLstart:   urlstart,
+			APIKEY:          apiKey,
+			TimeSpan:        tspn,
+			RequestCap:      rqcap,
+			Readystatehref:  readystatehref,
+			Shipedstatehref: shipedstatehref,
+			Storehref:       storehref,
+			Orghref:         orghref,
+			TimeFormat:      timeFormat,
+			URLstart:        urlstart,
 		},
-	}, nil
+		RefGoconfig{
+			RGLatestOrder: latestorder,
+		},
+	}
 }

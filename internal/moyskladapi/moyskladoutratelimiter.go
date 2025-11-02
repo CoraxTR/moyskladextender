@@ -32,3 +32,7 @@ func (r *Ratelimiter) Stop() {
 	r.ticker.Stop()
 	close(r.ch)
 }
+
+func (r *Ratelimiter) Chan() <-chan struct{} {
+	return r.ch
+}
