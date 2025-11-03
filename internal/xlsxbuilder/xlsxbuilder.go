@@ -28,20 +28,41 @@ func clickCell(sh *xlsx.Sheet, row, col int) *xlsx.Cell {
 }
 
 func BuildUploadXlsx(cfg config.Config, orders map[string]order_processor.ProcessedOrder) error {
-
-	uploadFile, err := xlsx.OpenFile("../blankimport.xlsx")
-	if err != nil {
-		panic(err)
-	}
+	var importrownumber int
+	var summaryrownumber int
+	var err error
 	var importSheet *xlsx.Sheet
 	var summarySheet *xlsx.Sheet
 	var theCell *xlsx.Cell
+	var uploadFile *xlsx.File
+
+	temptoday := time.Now()
+	today := temptoday.Format("02.01.2006")
+	savepath := "../" + today + ".xlsx"
+
+	uploadFile, err = xlsx.OpenFile(savepath)
+	if err != nil {
+		uploadFile, err = xlsx.OpenFile("../blankimport.xlsx")
+		if err != nil {
+			panic(err)
+		}
+		importrownumber = 1
+		summaryrownumber = 6
+	} else {
+		theCell = clickCell(uploadFile.Sheet["Расписка"], 24, 5)
+		importrownumber, err = theCell.Int()
+		if err != nil {
+			panic(err)
+		}
+		theCell = clickCell(uploadFile.Sheet["Расписка"], 25, 5)
+		summaryrownumber, err = theCell.Int()
+		if err != nil {
+			panic(err)
+		}
+	}
 
 	importSheet = uploadFile.Sheet["Импорт"]
 	summarySheet = uploadFile.Sheet["Расписка"]
-
-	importrownumber := 1
-	summaryrownumber := 6
 
 	for _, order := range orders {
 		refnumber, err := strconv.Atoi(order.RefGoNumber)
@@ -215,9 +236,10 @@ func BuildUploadXlsx(cfg config.Config, orders map[string]order_processor.Proces
 		summaryrownumber++
 	}
 
-	temptoday := time.Now()
-	today := temptoday.Format("02.01.2006")
-	savepath := "../" + today + ".xlsx"
+	theCell = clickCell(uploadFile.Sheet["Расписка"], 24, 5)
+	theCell.SetInt(importrownumber)
+	theCell = clickCell(uploadFile.Sheet["Расписка"], 25, 5)
+	theCell.SetInt(summaryrownumber)
 
 	uploadFile.Save(savepath)
 	importSheet.Close()
