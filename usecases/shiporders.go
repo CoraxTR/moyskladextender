@@ -15,7 +15,7 @@ func ShipOrders(m *moyskladapi.MoySkladProcessor, orders map[string]order_proces
 		if err != nil {
 			fmt.Println(err)
 		}
-		m.SetOrderSellTypetoOther(order.HREF)
+		m.SetOrderSellTypeOther(order.HREF)
 		m.SetOrderRefGoNumber(order.HREF, refnumber)
 		/*	if order.PaymentMethod == "Наличные" || order.PaymentMethod == "Терминал" {
 				m.ShipOrder(order.HREF, order.Counterpartyhref)

@@ -28,6 +28,9 @@ type Moyskladapiconfig struct {
 	Orghref           string
 	RefGoNumberhref   string
 	RefGoNumberID     string
+	Courierhref       string
+	CouierID          string
+	RefGoCourierhref  string
 	TimeFormat        string
 	URLstart          string
 }
@@ -104,6 +107,21 @@ func LoadConfig() *Config {
 		panic("RefGoNumberID does not exist")
 	}
 
+	courierhref := os.Getenv("MSAPI_COURIERHREF")
+	if courierhref == "" {
+		panic("Courierhref does not exist")
+	}
+
+	courierid := os.Getenv("MSAPI_COURIERID")
+	if courierid == "" {
+		panic("CourierID does not exist")
+	}
+
+	refgocourierhref := os.Getenv("MSAPI_REFGOCOURIERHREF")
+	if refgocourierhref == "" {
+		panic("RefGoCourierhref does not exist")
+	}
+
 	timeFormat := os.Getenv("MSAPI_TIMEFORMAT")
 	if timeFormat == "" {
 		panic("Timeformat does not exist")
@@ -138,6 +156,9 @@ func LoadConfig() *Config {
 			Orghref:           orghref,
 			RefGoNumberhref:   refgonumberhref,
 			RefGoNumberID:     refgonumberid,
+			Courierhref:       courierhref,
+			CouierID:          courierid,
+			RefGoCourierhref:  refgocourierhref,
 			TimeFormat:        timeFormat,
 			URLstart:          urlstart,
 		},

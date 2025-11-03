@@ -203,7 +203,7 @@ func (m *MoySkladProcessor) SetOrderShipped(href string) error {
 	return nil
 }
 
-func (m *MoySkladProcessor) SetOrderSellTypetoOther(href string) error {
+func (m *MoySkladProcessor) SetOrderSellTypeOther(href string) error {
 	url := href
 	orderSellTypeUpdate := orderUpdate{
 		Attributes: []Attribute{
@@ -269,6 +269,58 @@ func (m *MoySkladProcessor) SetOrderRefGoNumber(href string, rfgnumber int) erro
 				Name:  "Номер в Реф",
 				Type:  "string",
 				Value: strconv.Itoa(rfgnumber),
+			},
+		},
+	}
+
+	orderSellTypeUpdateJSON, err := json.Marshal(orderSellTypeUpdate)
+	if err != nil {
+		fmt.Printf("failed to marshal orderShipmentUpdate: %s", err)
+	}
+
+	req, err := http.NewRequest(http.MethodPut, url, bytes.NewBuffer(orderSellTypeUpdateJSON))
+	if err != nil {
+		return err
+	}
+
+	req.Header.Set("Authorization", "Bearer "+m.Config.APIKEY)
+	req.Header.Set("Accept-Encoding", "gzip")
+	req.Header.Set("Content-Type", "application/json")
+
+	m.Ratelimiter.Wait()
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("API returned status %d", resp.StatusCode)
+	}
+	return nil
+}
+
+func (m *MoySkladProcessor) SetOrderCourrierRefGo(href string) error {
+	url := href
+	orderSellTypeUpdate := orderUpdate{
+		Attributes: []Attribute{
+			{
+				Meta: Meta{
+					Href:      m.Config.Courierhref,
+					Type:      "attributemetadata",
+					MediaType: "application/json",
+				},
+				ID:   m.Config.CouierID,
+				Name: "Курьер",
+				Type: "employee",
+				Value: Value{
+					Meta: Meta{
+						Href:      m.Config.RefGoCourierhref,
+						Type:      "employee",
+						MediaType: "application/json",
+					},
+					Name: "РефГо",
+				},
 			},
 		},
 	}
