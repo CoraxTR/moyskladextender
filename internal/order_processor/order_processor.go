@@ -6,6 +6,7 @@ import (
 	"mstorefgo/internal/config"
 	"mstorefgo/internal/moyskladapi"
 	"mstorefgo/internal/unmarshaller"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -70,21 +71,42 @@ func (u *ProcessedOrder) setOrderCounterpartyhref(o unmarshaller.Order) {
 	u.Counterpartyhref = o.Agent.Meta.HREF
 }
 
+func processPhoneNumber(phone string) (int, error) {
+	re := regexp.MustCompile(`[^\d]`)
+	digitsOnly := re.ReplaceAllString(phone, "")
+
+	if len(digitsOnly) != 11 {
+		return 0, fmt.Errorf("invalid phone number, expected 11 digits, got %d", len(digitsOnly))
+	}
+	result := "8" + digitsOnly[1:]
+	processedNumber, err := strconv.Atoi(result)
+	if err != nil {
+		return 0, err
+	}
+	return processedNumber, nil
+}
+
 // Set Order Reciever Contact Info. If corresponding slot is nil --> Fetch default Agent Contact Info by HREF from the body
 func (u *ProcessedOrder) setOrderRecieverContactInfo(o unmarshaller.Order, r *moyskladapi.MoySkladProcessor) {
 	if o.AttributesMap["Имя получателя"] != nil && o.AttributesMap["Телефон получателя"] != nil {
 		u.RecieverName = o.AttributesMap["Имя получателя"].(string)
-		recieverPhoneNumber, err := strconv.Atoi(o.AttributesMap["Телефон получателя"].(string))
+		recieverPhoneNumber := o.AttributesMap["Телефон получателя"].(string)
+		tempNumber, err := processPhoneNumber(recieverPhoneNumber)
 		if err != nil {
 			panic(err)
 		}
-		u.RecieverPhoneNumber = recieverPhoneNumber
+		u.RecieverPhoneNumber = tempNumber
 	} else {
 		reciever, err := unmarshaller.AgentUnmarshalling(r.FetchEntityByHREF(o.Agent.Meta.HREF))
 		if err != nil {
 			return
 		}
-		u.RecieverPhoneNumber, err = strconv.Atoi(reciever.Phone)
+		recieverPhoneNumber := reciever.Phone
+		tempNumber, err := processPhoneNumber(recieverPhoneNumber)
+		if err != nil {
+			panic(err)
+		}
+		u.RecieverPhoneNumber = tempNumber
 		if err != nil {
 			panic(err)
 		}
@@ -271,9 +293,19 @@ func suitableForDelivery(o unmarshaller.Order) bool {
 	dayaftertomorrowstring := dayaftertomorrow.Format("2006-01-02")
 	fmt.Println(dayaftertomorrowstring)
 	fmt.Println(slice[0])
-	if slice[0] == dayaftertomorrowstring && o.AttributesMap["Регион доставки"] == "МСК" {
+	if slice[0] == dayaftertomorrowstring && o.AttributesMap["Регион доставки"] == nil {
+		fmt.Println("Filtered")
+		fmt.Println(o.AttributesMap["Регион доставки"])
 		return false
 	}
+
+	if slice[0] == dayaftertomorrowstring && o.AttributesMap["Регион доставки"] == "МСК" {
+		fmt.Println("Filtered")
+		fmt.Println(o.AttributesMap["Регион доставки"])
+		return false
+	}
+	fmt.Println("Unfiltered")
+	fmt.Println(o.AttributesMap["Регион доставки"])
 	return true
 }
 
